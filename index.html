@@ -1,0 +1,216 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NITRO FROG OG - Tic Tac Toe</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #001f2f;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      color: #00ffcc;
+    }
+    .logo {
+      width: 120px;
+      margin: 10px auto;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      gap: 10px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    .cell {
+      width: 100px;
+      height: 100px;
+      font-size: 48px;
+      color: #00ffcc;
+      background-color: #00334d;
+      border: 2px solid #00ffcc;
+      cursor: pointer;
+    }
+    .status {
+      margin-top: 20px;
+      font-size: 24px;
+    }
+    .reset, .bot-toggle, .level-toggle {
+      margin: 10px 5px;
+      padding: 10px 20px;
+      font-size: 18px;
+      background: #00ffcc;
+      color: #001f2f;
+      border: none;
+      cursor: pointer;
+    }
+    .reset:hover, .bot-toggle:hover, .level-toggle:hover {
+      background: #00cccc;
+    }
+    #loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #001f2f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .spin-logo {
+      animation: spin 2s linear infinite;
+      width: 100px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #leaderboard {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <img src="logo.png" class="spin-logo" alt="Loading...">
+  </div>
+
+  <img class="logo" src="logo.png" alt="Nitro Frog Logo">
+  <h1>NITRO FROG OG - Tic Tac Toe</h1>
+  <div class="board" id="board"></div>
+  <div class="status" id="status"></div>
+  <button class="reset" onclick="resetGame()">Reset Game</button>
+  <button class="bot-toggle" onclick="toggleBotMode()">Play vs Bot: Off</button>
+  <button class="level-toggle" onclick="toggleBotLevel()">Level: Simple</button>
+
+  <div id="leaderboard"><strong>Leaderboard:</strong><br/></div>
+  <audio id="clickSound" src="click.mp3"></audio>
+
+  <script>
+    const board = document.getElementById('board');
+    const status = document.getElementById('status');
+    const loader = document.getElementById('loader');
+    const botToggle = document.querySelector('.bot-toggle');
+    const levelToggle = document.querySelector('.level-toggle');
+    const leaderboardDiv = document.getElementById('leaderboard');
+    const clickSound = document.getElementById('clickSound');
+
+    let cells = [];
+    let currentPlayer = '🐸';
+    let gameActive = true;
+    let botMode = false;
+    let botLevel = 'simple';
+
+    function createBoard() {
+      cells = [];
+      board.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.dataset.index = i;
+        cell.addEventListener('click', () => handleCellClick(i));
+        board.appendChild(cell);
+        cells.push('');
+      }
+      status.textContent = `Player ${currentPlayer}'s turn`;
+    }
+
+    function handleCellClick(index) {
+      if (cells[index] !== '' || !gameActive) return;
+      clickSound.play();
+      cells[index] = currentPlayer;
+      board.children[index].textContent = currentPlayer;
+      if (checkWin()) {
+        status.textContent = `🎉 Player ${currentPlayer} wins!`;
+        gameActive = false;
+        submitScore(currentPlayer);
+        return;
+      }
+      if (!cells.includes('')) {
+        status.textContent = "It's a draw!";
+        gameActive = false;
+        return;
+      }
+      currentPlayer = currentPlayer === '🐸' ? '🚀' : '🐸';
+      status.textContent = `Player ${currentPlayer}'s turn`;
+      if (botMode && currentPlayer === '🚀') {
+        setTimeout(botMove, 400);
+      }
+    }
+
+    function checkWin() {
+      const winCombos = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8],
+        [0, 4, 8], [2, 4, 6]
+      ];
+      return winCombos.some(combo => {
+        const [a, b, c] = combo;
+        return cells[a] && cells[a] === cells[b] && cells[a] === cells[c];
+      });
+    }
+
+    function botMove() {
+      if (!gameActive) return;
+      const emptyIndices = cells.map((val, idx) => val === '' ? idx : null).filter(idx => idx !== null);
+      let move = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      handleCellClick(move);
+    }
+
+    function resetGame() {
+      currentPlayer = '🐸';
+      gameActive = true;
+      createBoard();
+    }
+
+    function toggleBotMode() {
+      botMode = !botMode;
+      botToggle.textContent = `Play vs Bot: ${botMode ? 'On' : 'Off'}`;
+      resetGame();
+    }
+
+    function toggleBotLevel() {
+      const levels = ['simple', 'medium', 'hard'];
+      const nextLevel = levels[(levels.indexOf(botLevel) + 1) % levels.length];
+      botLevel = nextLevel;
+      levelToggle.textContent = `Level: ${botLevel.charAt(0).toUpperCase() + botLevel.slice(1)}`;
+      resetGame();
+    }
+
+    function submitScore(player) {
+      if (player === '🐸') {
+        fetch('https://your-backend-domain.com/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user: 'Frog_Player', score: 1 })
+        });
+      }
+    }
+
+    function loadLeaderboard() {
+      fetch('https://your-backend-domain.com/leaderboard')
+        .then(res => res.json())
+        .then(data => {
+          leaderboardDiv.innerHTML = '<strong>Leaderboard:</strong><br/>' +
+            data.leaderboard.map(([user, score]) => `${user}: ${score}`).join('<br/>');
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        loader.style.display = 'none';
+        createBoard();
+        loadLeaderboard();
+      }, 1500);
+    });
+  </script>
+</body>
+</html>
